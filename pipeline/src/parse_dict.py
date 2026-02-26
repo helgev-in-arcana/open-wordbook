@@ -14,21 +14,26 @@ def clean_pos(pos_text):
     if "adverb" in p or p == "adv": return "Adv"
     if "pronoun" in p: return "Pron"
     if "preposition" in p: return "Prep"
-    if "conjunction" in p: return "Conj"
+    if "conjunction" in p or p == "conj": return "Conj"
     if "interjection" in p: return "Int"
     if "particle" in p: return "Part"
     if "auxiliary" in p: return "Aux"
     if "counter" in p: return "Ctr"
+    if "expression" in p or p == "exp": return "Expr"
+    if "numeric" in p: return "Num"
+    if "prefix" in p: return "Prefix"
+    if "suffix" in p: return "Suffix"
 
-    # If short code (e.g. 'n', 'v', 'vt'), uppercase
+    # If short code (e.g. 'n', 'v', 'vt'), Title Case (e.g. 'Vt')
     if len(p) <= 5:
-        return p.upper()
+        return p.title()
 
     # Fallback: Truncate or Capitalize
-    # Some descriptions are very long. Just return "Other" or Capitalized?
-    # Let's Capitalize but truncate if too long?
-    # Usually the above covers most.
-    return p.capitalize()
+    # If very long description, return "Other" to avoid UI clutter
+    if len(p) > 20:
+        return "Other"
+
+    return p.title()
 
 def load_dictionary(xml_file):
     if not os.path.exists(xml_file):

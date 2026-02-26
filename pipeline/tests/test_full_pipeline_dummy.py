@@ -38,7 +38,7 @@ def create_dummy_dict(path):
 <k_ele><keb>幸せ</keb></k_ele>
 <r_ele><reb>しあわせ</reb></r_ele>
 <sense>
-<pos>adj</pos>
+<pos>Expressions (phrases, clauses, etc.)</pos>
 <gloss>happy</gloss>
 </sense>
 </entry>
@@ -115,6 +115,12 @@ def test_full_pipeline_logic():
     assert "猫" in rows[0][0] or "ねこ" in rows[0][0]
     # Verify POS is cleaned
     assert rows[0][1] == "Noun", f"POS not cleaned: {rows[0][1]}"
+
+    # Verify 'happy' is 'Expr' (from 'Expressions...')
+    c.execute("SELECT part_of_speech FROM definitions JOIN words ON definitions.word_id = words.id WHERE words.lemma='happy'")
+    res = c.fetchone()
+    assert res is not None
+    assert res[0] == "Expr", f"POS for happy not cleaned: {res[0]}"
 
     conn.close()
     print("[Test] Logic Verification Passed!")
