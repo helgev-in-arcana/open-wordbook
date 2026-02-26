@@ -1,0 +1,137 @@
+.definition-panel {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid #eee;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #888;
+  padding: 0 0.5rem;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #333;
+}
+
+.definitions-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.definition-item {
+  margin-bottom: 1.2rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.definition-item:last-child {
+  border-bottom: none;
+}
+
+.def-header {
+  display: flex;
+  gap: 0.8rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+  align-items: center;
+}
+
+.pos-tag {
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.source-tag {
+  color: #999;
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+.meaning {
+  font-size: 1.1rem;
+  line-height: 1.5;
+  color: #222;
+}
+
+.loading {
+  text-align: center;
+  color: #666;
+  padding: 2rem;
+}
+
+.error {
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .definition-panel {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #eee;
+  }
+
+  .panel-header {
+    border-bottom: 2px solid #444;
+  }
+
+  .panel-header h2 {
+    color: #eee;
+  }
+
+  .close-btn {
+    color: #aaa;
+  }
+
+  .close-btn:hover {
+    color: #fff;
+  }
+
+  .definition-item {
+    border-bottom: 1px solid #444;
+  }
+
+  .pos-tag {
+    background: #3730a3;
+    color: #c7d2fe;
+  }
+
+  .source-tag {
+    color: #888;
+  }
+
+  .meaning {
+    color: #ddd;
+  }
+}

@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Node
+node_modules/
+dist/
+
+# Rust/Tauri
+target/
+app/src-tauri/target/
+
+# Data & Artifacts
+pipeline/data/
+*.sqlite3
+*.parquet
+*.xml
+*.gz
+*.txt
+verification/
+db_test/

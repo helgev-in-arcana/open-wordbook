@@ -1,5 +1,0 @@
-polars
-spacy
-pytest
-datasets
-huggingface_hub
