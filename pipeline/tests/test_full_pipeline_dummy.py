@@ -29,7 +29,7 @@ def create_dummy_dict(path):
 <k_ele><keb>猫</keb></k_ele>
 <r_ele><reb>ねこ</reb></r_ele>
 <sense>
-<pos>n</pos>
+<pos>noun (common) (futsuumeishi)</pos>
 <gloss>cat</gloss>
 </sense>
 </entry>
@@ -108,11 +108,13 @@ def test_full_pipeline_logic():
     assert c.fetchone()[0] == 1, "sit deleted (should keep due to rank)"
 
     # Check definition for 'cat'
-    c.execute("SELECT meaning FROM definitions JOIN words ON definitions.word_id = words.id WHERE words.lemma='cat'")
+    c.execute("SELECT meaning, part_of_speech FROM definitions JOIN words ON definitions.word_id = words.id WHERE words.lemma='cat'")
     rows = c.fetchall()
     assert len(rows) > 0, "No definition for cat"
-    print(f"[Test] Definition for cat: {rows[0][0]}")
+    print(f"[Test] Definition for cat: {rows[0]}")
     assert "猫" in rows[0][0] or "ねこ" in rows[0][0]
+    # Verify POS is cleaned
+    assert rows[0][1] == "Noun", f"POS not cleaned: {rows[0][1]}"
 
     conn.close()
     print("[Test] Logic Verification Passed!")
