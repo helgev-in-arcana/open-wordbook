@@ -15,7 +15,7 @@ from build_phase2 import build_phase2
 
 def create_dummy_corpus(path):
     # Create simple text data
-    data = {"text": ["The cat sat on the mat.", "The cat is happy.", "The dog runs."]}
+    data = {"text": ["The cat sat on the mat.", "The cat is happy.", "The dog runs.", "The dog makes a mess."]}
     df = pl.DataFrame(data)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     df.write_parquet(path)
@@ -40,6 +40,15 @@ def create_dummy_dict(path):
 <sense>
 <pos>Expressions (phrases, clauses, etc.)</pos>
 <gloss>happy</gloss>
+</sense>
+</entry>
+<entry>
+<ent_seq>103</ent_seq>
+<k_ele><keb>作る</keb></k_ele>
+<sense>
+<pos>Godan verb with 'u' ending</pos>
+<pos>Transitive verb</pos>
+<gloss>make</gloss>
 </sense>
 </entry>
 </JMdict>
@@ -121,6 +130,13 @@ def test_full_pipeline_logic():
     res = c.fetchone()
     assert res is not None
     assert res[0] == "Expr", f"POS for happy not cleaned: {res[0]}"
+
+    # Verify 'make'
+    c.execute("SELECT part_of_speech FROM definitions JOIN words ON definitions.word_id = words.id WHERE words.lemma='make'")
+    res = c.fetchone()
+    assert res is not None
+    # Expected: "Verb (Godan), Vt" (sorted)
+    assert res[0] == "Verb (Godan), Vt", f"POS for make not cleaned correctly: {res[0]}"
 
     conn.close()
     print("[Test] Logic Verification Passed!")

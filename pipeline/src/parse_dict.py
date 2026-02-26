@@ -5,9 +5,17 @@ import os
 def clean_pos(pos_text):
     if not pos_text:
         return ""
-    p = pos_text.lower()
+    p = pos_text.strip().lower()
 
-    # Common mappings based on JMdict codes/expansions
+    # Specific Grammar Types (preserve nuance)
+    if "transitive verb" in p: return "Vt"
+    if "intransitive verb" in p: return "Vi"
+    if "adjectival noun" in p or "na-adjective" in p: return "Na"
+    if "godan verb" in p: return "Verb (Godan)"
+    if "ichidan verb" in p: return "Verb (Ichidan)"
+    if "suru verb" in p: return "Vs"
+
+    # General Categories
     if "noun" in p: return "Noun"
     if "verb" in p: return "Verb"
     if "adjective" in p or p == "adj": return "Adj"
@@ -24,12 +32,12 @@ def clean_pos(pos_text):
     if "prefix" in p: return "Prefix"
     if "suffix" in p: return "Suffix"
 
-    # If short code (e.g. 'n', 'v', 'vt'), Title Case (e.g. 'Vt')
+    # Short codes (e.g. 'n', 'v'), Title Case (e.g. 'N', 'V')
     if len(p) <= 5:
         return p.title()
 
-    # Fallback: Truncate or Capitalize
-    # If very long description, return "Other" to avoid UI clutter
+    # Default fallback for unhandled long strings
+    # Return "Other" or generic "Misc" to avoid UI clutter
     if len(p) > 20:
         return "Other"
 
@@ -43,10 +51,9 @@ def load_dictionary(xml_file):
     print(f"Parsing {xml_file}...")
     dictionary = defaultdict(list)
 
-    # Use iterparse to handle large XML files
     context = ET.iterparse(xml_file, events=("start", "end"))
     context = iter(context)
-    event, root = next(context) # Get root element
+    event, root = next(context)
 
     count = 0
     for event, elem in context:
@@ -55,22 +62,18 @@ def load_dictionary(xml_file):
             if count % 10000 == 0:
                 print(f"Processed {count} entries...", end="\r")
 
-            # Extract Priority (frequency info)
             is_common = False
 
-            # Extract Japanese Headword
             japanese_word = ""
             k_ele = elem.find("k_ele")
             if k_ele is not None:
                 keb_elem = k_ele.find("keb")
                 if keb_elem is not None and keb_elem.text:
                     japanese_word = keb_elem.text
-                    # Check priority
                     for pri in k_ele.findall("ke_pri"):
                         if pri.text and (pri.text.startswith("news") or pri.text.startswith("ichi") or pri.text.startswith("spec") or pri.text.startswith("nf")):
                             is_common = True
 
-                    # Append reading
                     r_ele = elem.find("r_ele")
                     if r_ele is not None:
                         reb_elem = r_ele.find("reb")
@@ -82,7 +85,6 @@ def load_dictionary(xml_file):
                     reb_elem = r_ele.find("reb")
                     if reb_elem is not None and reb_elem.text:
                         japanese_word = reb_elem.text
-                        # Check priority
                         for pri in r_ele.findall("re_pri"):
                              if pri.text and (pri.text.startswith("news") or pri.text.startswith("ichi") or pri.text.startswith("spec") or pri.text.startswith("nf")):
                                 is_common = True
@@ -91,25 +93,19 @@ def load_dictionary(xml_file):
                 root.clear()
                 continue
 
-            # Process Senses
             for sense in elem.findall("sense"):
-                # POS
                 pos_list = [p.text for p in sense.findall("pos") if p.text]
-                # Clean and dedup POS
                 cleaned_pos_list = sorted(list(set(clean_pos(p) for p in pos_list)))
                 pos = ", ".join(cleaned_pos_list)
 
-                # Glosses
                 for gloss in sense.findall("gloss"):
                     text = gloss.text
                     if text:
-                        # Split by semicolon for multiple meanings in one gloss
                         parts = text.split(";")
                         for part in parts:
                             english_word = part.strip().lower()
                             if not english_word: continue
 
-                            # Heuristic: Remove "to " from verbs
                             if english_word.startswith("to ") and ("v" in pos.lower() or "verb" in pos.lower()):
                                  english_word = english_word[3:]
 
@@ -120,16 +116,13 @@ def load_dictionary(xml_file):
                                 "is_common": is_common
                             }
 
-                            # Avoid appending exact duplicate consecutively
                             if not (dictionary[english_word] and dictionary[english_word][-1] == entry):
                                 dictionary[english_word].append(entry)
 
-            # Clear processed element
             root.clear()
 
     print(f"\nParsed {len(dictionary)} unique English words.")
 
-    # Sort entries by commonness (True first)
     print("Sorting dictionary entries by priority...")
     for k in dictionary:
         dictionary[k].sort(key=lambda x: x.get('is_common', False), reverse=True)
