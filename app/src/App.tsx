@@ -9,6 +9,7 @@ interface Word {
   lemma: string;
   frequency_count: number;
   frequency_rank: number;
+  surface_forms?: string;
 }
 
 function App() {
@@ -22,9 +23,6 @@ function App() {
       const result: Word[] = await invoke("search_words", { query: q });
       setWords(result);
       setError("");
-      // Don't clear selectedWord automatically to allow browsing list while keeping detail open?
-      // Or clear? Let's keep it if it's in the new list, otherwise clear.
-      // But simpler to clear or keep. Let's keep.
     } catch (e) {
       console.error(e);
       setError(String(e));
@@ -95,6 +93,7 @@ function App() {
             <DefinitionPanel
               wordId={selectedWord.id}
               lemma={selectedWord.lemma}
+              surfaceForms={selectedWord.surface_forms}
               onClose={() => setSelectedWord(null)}
             />
           </div>

@@ -9,7 +9,7 @@
 .panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   border-bottom: 2px solid #f0f0f0;
   padding-bottom: 0.8rem;
   margin-bottom: 1.2rem;
@@ -19,6 +19,19 @@
   margin: 0;
   font-size: 1.8rem;
   color: #333;
+}
+
+.surface-forms {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.surface-label {
+  font-weight: 600;
+  color: #555;
+  margin-right: 0.5rem;
 }
 
 .close-btn {
@@ -108,6 +121,14 @@
 
   .panel-header h2 {
     color: #eee;
+  }
+
+  .surface-forms {
+    color: #bbb;
+  }
+
+  .surface-label {
+    color: #ddd;
   }
 
   .close-btn {

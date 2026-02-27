@@ -13,6 +13,7 @@ interface Definition {
 interface DefinitionPanelProps {
   wordId: number;
   lemma: string;
+  surfaceForms?: string;
   onClose: () => void;
 }
 
@@ -49,7 +50,24 @@ function localizePos(posString: string): string {
   }).join("・");
 }
 
-export default function DefinitionPanel({ wordId, lemma, onClose }: DefinitionPanelProps) {
+function parseSurfaceForms(json: string): string {
+  try {
+    const map = JSON.parse(json) as Record<string, number>;
+    // Sort by count descending
+    const items = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    // Format: "form (count)"
+    // Limit to top 5
+    const topItems = items.slice(0, 5);
+    if (topItems.length === 0) return "";
+
+    return topItems.map(([form, count]) => `${form} (${count})`).join(", ");
+  } catch (e) {
+    console.error("Failed to parse surface forms", e);
+    return "";
+  }
+}
+
+export default function DefinitionPanel({ wordId, lemma, surfaceForms, onClose }: DefinitionPanelProps) {
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -68,10 +86,19 @@ export default function DefinitionPanel({ wordId, lemma, onClose }: DefinitionPa
       });
   }, [wordId]);
 
+  const formsDisplay = surfaceForms ? parseSurfaceForms(surfaceForms) : "";
+
   return (
     <div className="definition-panel">
       <div className="panel-header">
-        <h2>{lemma}</h2>
+        <div>
+            <h2>{lemma}</h2>
+            {formsDisplay && (
+                <div className="surface-forms">
+                    <span className="surface-label">出現形:</span> {formsDisplay}
+                </div>
+            )}
+        </div>
         <button onClick={onClose} className="close-btn" aria-label="Close">×</button>
       </div>
 
