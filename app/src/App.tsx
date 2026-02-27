@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import "./DefinitionPanel.css";
 import DefinitionPanel from "./components/DefinitionPanel";
 
 interface Word {
