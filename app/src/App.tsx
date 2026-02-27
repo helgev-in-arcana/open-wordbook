@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import "./DefinitionPanel.css";
-import DefinitionPanel from "./DefinitionPanel";
+import DefinitionPanel from "./components/DefinitionPanel";
 
 interface Word {
   id: number;
@@ -27,6 +26,27 @@ function App() {
       console.error(e);
       setError(String(e));
     }
+  }
+
+  // Handle clicking a related word -> search and select it
+  async function handleSelectRelated(lemma: string) {
+      // 1. Set query to the lemma
+      setQuery(lemma);
+
+      // 2. Search for it immediately (bypass debounce for direct interaction)
+      try {
+          const result: Word[] = await invoke("search_words", { query: lemma });
+          setWords(result);
+
+          // 3. If exact match found, select it
+          const match = result.find(w => w.lemma === lemma);
+          if (match) {
+              setSelectedWord(match);
+          }
+      } catch (e) {
+          console.error(e);
+          setError(String(e));
+      }
   }
 
   useEffect(() => {
@@ -95,6 +115,7 @@ function App() {
               lemma={selectedWord.lemma}
               surfaceForms={selectedWord.surface_forms}
               onClose={() => setSelectedWord(null)}
+              onSelectWord={handleSelectRelated}
             />
           </div>
         )}
