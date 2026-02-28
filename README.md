@@ -1,9 +1,10 @@
 # Open Word Book (Agile Master)
 
-**Open Word Book** is a fully offline, local-first English vocabulary application built with **Python**, **Rust**, **Tauri**, and **React**. It leverages open data (FineWeb-Edu corpus, JMdict dictionary) and modern AI techniques (Sentence Transformers, FAISS) to provide a rich, distraction-free learning environment.
+**Open Word Book** is a fully offline, local-first English vocabulary application built with **Python**, **Rust**, **Tauri**, and **React**. It is built on the philosophy of **total data freedom**—leveraging completely open data (FineWeb-Edu corpus, JMdict dictionary) and modern AI techniques (Sentence Transformers, FAISS) to provide a rich, distraction-free learning environment. You are never bound by restrictive proprietary rights or locked into closed ecosystems.
 
 ## Key Features
 
+*   **100% Open Data & Freedom:** Utilizing entirely open datasets and open-source models. No proprietary APIs, no subscriptions, and completely free from restrictive licensing. Your data, your rules.
 *   **Offline-First:** All data is embedded. No internet required.
 *   **High Performance:** Rust backend with SQLite for instant search.
 *   **Smart Suggestions:** AI-powered semantic search (e.g., searching "cat" suggests "kitten", "feline").
@@ -70,4 +71,6 @@ npm run tauri dev
 
 ## License
 
-MIT License (Code). Data usage subject to respective licenses (CC-BY-SA for JMdict, etc.).
+MIT License (Code). 
+
+All incorporated data is sourced from open and free datasets (e.g., CC-BY-SA for JMdict, permissive usage for FineWeb-Edu), strictly adhering to the principle of remaining unbound by restrictive, proprietary data rights.
