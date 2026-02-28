@@ -119,6 +119,7 @@ def build_database(input_parquet, output_db, dict_path=None):
 
     conn = sqlite3.connect(output_db)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
 
     print("Creating tables...")
     cursor.execute("""

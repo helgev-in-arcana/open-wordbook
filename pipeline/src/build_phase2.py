@@ -21,6 +21,7 @@ def build_phase2(db_path, dict_path):
     print("Updating database...")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
 
     # Create definitions table
     cursor.execute("""

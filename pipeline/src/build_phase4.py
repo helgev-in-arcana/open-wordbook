@@ -23,6 +23,8 @@ import sys
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import faiss
+import random
+import torch
 
 # Ensure we can import from the same directory if needed
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -36,6 +38,12 @@ def build_phase4(db_path, model_name="all-MiniLM-L6-v2", batch_size=32):
         model_name (str): HuggingFace model name for embeddings.
         batch_size (int): Batch size for model inference.
     """
+    # Ensure deterministic generation
+    SEED = 42
+    random.seed(SEED)
+    np.random.seed(SEED)
+    torch.manual_seed(SEED)
+
     if not os.path.exists(db_path):
         print(f"Error: {db_path} not found. Run previous build phases first.")
         return
@@ -47,6 +55,7 @@ def build_phase4(db_path, model_name="all-MiniLM-L6-v2", batch_size=32):
     print("Connecting to database...")
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA foreign_keys = ON;")
 
     # Create word_relations table
     # Stores many-to-many relationships with a score

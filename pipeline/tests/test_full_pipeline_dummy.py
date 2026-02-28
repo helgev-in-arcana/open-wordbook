@@ -69,13 +69,13 @@ def create_dummy_dict(path):
 </JMdict>
 """
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(xml_content)
 
 def test_full_pipeline_logic():
     dummy_parquet = "data/dummy.parquet"
     dummy_dict = "data/dummy_dict.xml"
-    db_path = "words.sqlite3"
+    db_path = "test_words.sqlite3"
 
     if os.path.exists(db_path):
         os.remove(db_path)

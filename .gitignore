@@ -21,3 +21,4 @@ pipeline/data/
 *.txt
 verification/
 db_test/
+*.log
