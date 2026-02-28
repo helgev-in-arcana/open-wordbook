@@ -85,9 +85,10 @@ fn get_flashcard_deck(
     state: State<'_, AppState>,
     total_cards: u32,
     new_ratio: f32,
-    active_tier_limit: Option<u32>,
+    tier_min: Option<u32>,
+    tier_max: Option<u32>,
 ) -> Result<Vec<WordCard>, String> {
-    flashcard::get_flashcard_deck(state, total_cards, new_ratio, active_tier_limit)
+    flashcard::get_flashcard_deck(state, total_cards, new_ratio, tier_min, tier_max)
 }
 
 #[tauri::command]

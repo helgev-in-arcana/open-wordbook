@@ -7,7 +7,8 @@ export function FlashcardSession() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [totalCards, setTotalCards] = useState(10);
   const [newRatio, setNewRatio] = useState(0.2);
-  const [activeTierLimit, setActiveTierLimit] = useState<number | "none">(1000);
+  const [tierMin, setTierMin] = useState<number | "none">("none");
+  const [tierMax, setTierMax] = useState<number | "none">(1000);
   const [sessionActive, setSessionActive] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,11 +17,13 @@ export function FlashcardSession() {
     setLoading(true);
     setError(null);
     try {
-      const tierLimit = activeTierLimit === "none" ? null : activeTierLimit;
+      const parsedTierMin = tierMin === "none" ? null : tierMin;
+      const parsedTierMax = tierMax === "none" ? null : tierMax;
       const fetchedDeck = await getFlashcardDeck(
         totalCards,
         newRatio,
-        tierLimit
+        parsedTierMin,
+        parsedTierMax
       );
       setDeck(fetchedDeck);
       setCurrentIndex(0);
@@ -97,12 +100,28 @@ export function FlashcardSession() {
         </div>
         <div style={{ marginBottom: "1rem" }}>
           <label style={{ display: "block" }}>
-            Tier Limit (Frequency Rank):
+            Tier Min (Frequency Rank):
             <input
               type="text"
-              value={activeTierLimit}
+              value={tierMin}
               onChange={(e) =>
-                setActiveTierLimit(
+                setTierMin(
+                  e.target.value === "none" ? "none" : Number(e.target.value)
+                )
+              }
+              style={{ marginLeft: "10px", width: "80px" }}
+              placeholder="e.g. 1 or none"
+            />
+          </label>
+        </div>
+        <div style={{ marginBottom: "1rem" }}>
+          <label style={{ display: "block" }}>
+            Tier Max (Frequency Rank):
+            <input
+              type="text"
+              value={tierMax}
+              onChange={(e) =>
+                setTierMax(
                   e.target.value === "none" ? "none" : Number(e.target.value)
                 )
               }

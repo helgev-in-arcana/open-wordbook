@@ -24,7 +24,8 @@ pub fn get_flashcard_deck(
     state: State<'_, AppState>,
     total_cards: u32,
     new_ratio: f32,
-    active_tier_limit: Option<u32>,
+    tier_min: Option<u32>,
+    tier_max: Option<u32>,
 ) -> Result<Vec<WordCard>, String> {
     let words_conn = state
         .db
@@ -45,9 +46,18 @@ pub fn get_flashcard_deck(
         .as_secs() as i64;
 
     // Build query for words
-    let tier_condition = match active_tier_limit {
-        Some(limit) => format!("WHERE frequency_rank <= {}", limit),
-        None => "".to_string(),
+    let mut conditions = Vec::new();
+    if let Some(min) = tier_min {
+        conditions.push(format!("frequency_rank >= {}", min));
+    }
+    if let Some(max) = tier_max {
+        conditions.push(format!("frequency_rank <= {}", max));
+    }
+
+    let tier_condition = if conditions.is_empty() {
+        "".to_string()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
     };
 
     let sql = format!(

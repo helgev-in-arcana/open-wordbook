@@ -16,12 +16,14 @@ export async function getRelatedWords(wordId: number): Promise<RelatedWord[]> {
 export async function getFlashcardDeck(
   totalCards: number,
   newRatio: number,
-  activeTierLimit: number | null
+  tierMin: number | null,
+  tierMax: number | null
 ): Promise<WordCard[]> {
   return await invoke('get_flashcard_deck', {
     totalCards,
     newRatio,
-    activeTierLimit,
+    tierMin,
+    tierMax,
   });
 }
 
