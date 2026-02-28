@@ -42,6 +42,41 @@ pub struct UserLearningState {
     pub is_ignored: bool,
 }
 
+use std::collections::HashMap;
+
+pub fn get_all_user_learning_states(
+    conn: &Connection,
+) -> Result<HashMap<i64, UserLearningState>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT word_id, score_ema, variance_ema, last_reviewed_at, review_count, is_ignored
+             FROM user_learning_states",
+        )
+        .map_err(|e| format!("Prepare failed: {}", e))?;
+
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(UserLearningState {
+                word_id: row.get(0)?,
+                score_ema: row.get::<_, f64>(1)? as f32,
+                variance_ema: row.get::<_, f64>(2)? as f32,
+                last_reviewed_at: row.get(3)?,
+                review_count: row.get(4)?,
+                is_ignored: row.get(5)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let mut map = HashMap::new();
+    for state_res in rows {
+        if let Ok(state) = state_res {
+            map.insert(state.word_id, state);
+        }
+    }
+
+    Ok(map)
+}
+
 pub fn get_user_learning_state(
     conn: &Connection,
     word_id: i64,

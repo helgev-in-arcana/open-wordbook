@@ -1,5 +1,5 @@
 use crate::algorithm::{calculate_weight, update_learning_state};
-use crate::user_db::{get_user_learning_state, save_user_learning_state, set_word_ignored};
+use crate::user_db::{get_all_user_learning_states, get_user_learning_state, save_user_learning_state, set_word_ignored};
 use crate::{db::Word, AppState};
 use rand::distr::weighted::WeightedIndex;
 use rand::distr::Distribution;
@@ -80,6 +80,8 @@ pub fn get_flashcard_deck(
         })
         .map_err(|e| format!("Query failed: {}", e))?;
 
+    let user_states_map = get_all_user_learning_states(&user_conn).unwrap_or_default();
+
     let mut review_cards: Vec<WordCard> = Vec::new();
     let mut new_cards: Vec<WordCard> = Vec::new();
 
@@ -89,8 +91,8 @@ pub fn get_flashcard_deck(
             Err(_) => continue,
         };
 
-        let user_state = get_user_learning_state(&user_conn, w.id).unwrap_or(None);
-        let weight = calculate_weight(user_state.as_ref(), w.frequency_count, now, &config);
+        let user_state = user_states_map.get(&w.id);
+        let weight = calculate_weight(user_state, w.frequency_count, now, &config);
 
         let mut card = WordCard {
             word: w,
