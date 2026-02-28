@@ -65,3 +65,97 @@ pub fn calculate_weight(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_learning_state_initial() {
+        let config = FlashcardConfig::default();
+        let state = update_learning_state(None, 1, 2, &config, 1000);
+
+        assert_eq!(state.word_id, 1);
+        assert_eq!(state.score_ema, 2.0);
+        assert_eq!(state.variance_ema, 0.0);
+        assert_eq!(state.last_reviewed_at, 1000);
+        assert_eq!(state.review_count, 1);
+        assert_eq!(state.is_ignored, false);
+    }
+
+    #[test]
+    fn test_update_learning_state_subsequent() {
+        let config = FlashcardConfig {
+            alpha: 0.5,
+            ..FlashcardConfig::default()
+        };
+
+        let initial_state = UserLearningState {
+            word_id: 1,
+            score_ema: 2.0,
+            variance_ema: 0.0,
+            last_reviewed_at: 1000,
+            review_count: 1,
+            is_ignored: false,
+        };
+
+        // Score 0 (completely forgot)
+        let state = update_learning_state(Some(&initial_state), 1, 0, &config, 2000);
+
+        // new_score = 2.0 + 0.5 * (0.0 - 2.0) = 1.0
+        assert_eq!(state.score_ema, 1.0);
+        // new_variance = (1.0 - 0.5) * (0.0 + 0.5 * (-2.0)^2) = 0.5 * (2.0) = 1.0
+        assert_eq!(state.variance_ema, 1.0);
+        assert_eq!(state.review_count, 2);
+        assert_eq!(state.last_reviewed_at, 2000);
+    }
+
+    #[test]
+    fn test_calculate_weight_unlearned() {
+        let config = FlashcardConfig::default(); // new_weight_initial_value = 3.0
+        // freq = 100 => log10(100) = 2.0
+        let weight = calculate_weight(None, 100, 1000, &config);
+        assert_eq!(weight, 3.0 * 2.0); // 6.0
+    }
+
+    #[test]
+    fn test_calculate_weight_ignored() {
+        let config = FlashcardConfig::default();
+        let state = UserLearningState {
+            word_id: 1,
+            score_ema: 2.0,
+            variance_ema: 0.0,
+            last_reviewed_at: 1000,
+            review_count: 1,
+            is_ignored: true,
+        };
+        let weight = calculate_weight(Some(&state), 100, 2000, &config);
+        assert_eq!(weight, 0.0);
+    }
+
+    #[test]
+    fn test_calculate_weight_learned() {
+        let config = FlashcardConfig {
+            weight_mean: 1.0,
+            weight_variance: 1.0,
+            time_decay_factor: 0.001,
+            ..FlashcardConfig::default()
+        };
+
+        let state = UserLearningState {
+            word_id: 1,
+            score_ema: 1.0, // w_diff = (2.0 - 1.0) * 1.0 = 1.0
+            variance_ema: 0.5, // w_var = 0.5 * 1.0 = 0.5
+            last_reviewed_at: 1000,
+            review_count: 1,
+            is_ignored: false,
+        };
+
+        // w_time = (2000 - 1000) * 0.001 = 1.0
+        // total = 1.0 + 0.5 + 1.0 = 2.5
+        // log_f (freq 10) = 1.0
+        // expected weight = 2.5 * 1.0 = 2.5
+        let weight = calculate_weight(Some(&state), 10, 2000, &config);
+        assert_eq!(weight, 2.5);
+    }
+}

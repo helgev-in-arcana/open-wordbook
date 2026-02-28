@@ -2,14 +2,19 @@ use rusqlite::Connection;
 use std::path::Path;
 
 pub fn init_user_db(db_path: &Path) -> Result<Connection, String> {
-    let parent = db_path.parent().unwrap();
-    if !parent.exists() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create user db dir: {}", e))?;
+    if let Some(parent) = db_path.parent() {
+        if !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create user db dir: {}", e))?;
+        }
     }
 
     let conn = Connection::open(db_path).map_err(|e| format!("Failed to open user db: {}", e))?;
+    setup_tables(&conn)?;
+    Ok(conn)
+}
 
+pub fn setup_tables(conn: &Connection) -> Result<(), String> {
     // Create learning states table
     let init_sql = "
         CREATE TABLE IF NOT EXISTS user_learning_states (
@@ -24,8 +29,7 @@ pub fn init_user_db(db_path: &Path) -> Result<Connection, String> {
 
     conn.execute(init_sql, [])
         .map_err(|e| format!("Failed to init user db table: {}", e))?;
-
-    Ok(conn)
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -111,4 +115,83 @@ pub fn set_word_ignored(conn: &Connection, word_id: i64, ignored: bool) -> Resul
         .map_err(|e| format!("Set ignored failed: {}", e))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn setup_memory_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        setup_tables(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_save_and_get_state() {
+        let conn = setup_memory_db();
+        let state = UserLearningState {
+            word_id: 1,
+            score_ema: 1.5,
+            variance_ema: 0.2,
+            last_reviewed_at: 1600000000,
+            review_count: 5,
+            is_ignored: false,
+        };
+
+        // Assert empty initially
+        let fetched_none = get_user_learning_state(&conn, 1).unwrap();
+        assert!(fetched_none.is_none());
+
+        // Save and get
+        save_user_learning_state(&conn, &state).unwrap();
+        let fetched = get_user_learning_state(&conn, 1).unwrap().unwrap();
+        assert_eq!(fetched, state);
+
+        // Update existing state (Upsert)
+        let updated_state = UserLearningState {
+            word_id: 1,
+            score_ema: 1.8,
+            variance_ema: 0.1,
+            last_reviewed_at: 1600001000,
+            review_count: 6,
+            is_ignored: false,
+        };
+
+        save_user_learning_state(&conn, &updated_state).unwrap();
+        let fetched_updated = get_user_learning_state(&conn, 1).unwrap().unwrap();
+        assert_eq!(fetched_updated, updated_state);
+    }
+
+    #[test]
+    fn test_set_word_ignored() {
+        let conn = setup_memory_db();
+
+        // 1. Set unlearned word to ignored
+        set_word_ignored(&conn, 2, true).unwrap();
+        let state1 = get_user_learning_state(&conn, 2).unwrap().unwrap();
+        assert_eq!(state1.is_ignored, true);
+        assert_eq!(state1.review_count, 0);
+
+        // 2. Un-ignore it
+        set_word_ignored(&conn, 2, false).unwrap();
+        let state2 = get_user_learning_state(&conn, 2).unwrap().unwrap();
+        assert_eq!(state2.is_ignored, false);
+
+        // 3. Set existing learned word to ignored (should keep other stats but set ignored flag)
+        let state = UserLearningState {
+            word_id: 3,
+            score_ema: 1.5,
+            variance_ema: 0.2,
+            last_reviewed_at: 1600000000,
+            review_count: 5,
+            is_ignored: false,
+        };
+        save_user_learning_state(&conn, &state).unwrap();
+
+        set_word_ignored(&conn, 3, true).unwrap();
+        let state3 = get_user_learning_state(&conn, 3).unwrap().unwrap();
+        assert_eq!(state3.is_ignored, true);
+        assert_eq!(state3.review_count, 5); // Kept existing stats
+    }
 }

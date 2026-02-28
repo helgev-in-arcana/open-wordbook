@@ -52,3 +52,39 @@ pub fn save_config(config_dir: &Path, config: &FlashcardConfig) -> Result<(), St
     fs::write(config_path, contents).map_err(|e| format!("Failed to write config: {}", e))?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::fs;
+
+    #[test]
+    fn test_load_and_save_config() {
+        let temp_dir = env::temp_dir().join("openwordbook_test_config");
+        if temp_dir.exists() {
+            let _ = fs::remove_dir_all(&temp_dir);
+        }
+
+        // Test loading when no config exists (should create default)
+        let config1 = load_config(&temp_dir).unwrap();
+        assert_eq!(config1.alpha, 0.3); // Check a default value
+
+        let config_path = temp_dir.join("config.json");
+        assert!(config_path.exists());
+
+        // Test saving and loading back modified config
+        let mut modified_config = config1.clone();
+        modified_config.alpha = 0.8;
+        modified_config.new_weight_initial_value = 5.0;
+
+        save_config(&temp_dir, &modified_config).unwrap();
+
+        let config2 = load_config(&temp_dir).unwrap();
+        assert_eq!(config2.alpha, 0.8);
+        assert_eq!(config2.new_weight_initial_value, 5.0);
+
+        // Cleanup
+        let _ = fs::remove_dir_all(&temp_dir);
+    }
+}
