@@ -4,10 +4,19 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
 mod db;
-use db::{Definition, RelatedWord, Word};
+pub mod config;
+pub mod user_db;
+pub mod algorithm;
+pub mod flashcard;
 
-struct AppState {
-    db: Mutex<Connection>,
+use db::{Definition, RelatedWord, Word};
+use flashcard::WordCard;
+use config::FlashcardConfig;
+
+pub struct AppState {
+    pub db: Mutex<Connection>,
+    pub user_db: Mutex<Connection>,
+    pub config: Mutex<FlashcardConfig>,
 }
 
 fn resolve_db_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -71,6 +80,26 @@ fn get_related_words(state: State<'_, AppState>, word_id: i64) -> Result<Vec<Rel
     db::get_related_words(&conn, word_id)
 }
 
+#[tauri::command]
+fn get_flashcard_deck(
+    state: State<'_, AppState>,
+    total_cards: u32,
+    new_ratio: f32,
+    active_tier_limit: Option<u32>,
+) -> Result<Vec<WordCard>, String> {
+    flashcard::get_flashcard_deck(state, total_cards, new_ratio, active_tier_limit)
+}
+
+#[tauri::command]
+fn submit_card_answer(state: State<'_, AppState>, word_id: i64, score: u8) -> Result<(), String> {
+    flashcard::submit_card_answer(state, word_id, score)
+}
+
+#[tauri::command]
+fn set_word_ignored(state: State<'_, AppState>, word_id: i64, ignored: bool) -> Result<(), String> {
+    flashcard::handle_set_word_ignored(state, word_id, ignored)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -84,15 +113,27 @@ pub fn run() {
                 &db_path,
                 rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
             ).map_err(|e| format!("Failed to open DB: {}", e))?;
+
+            let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let user_db_path = app_data_dir.join("user.sqlite3");
+            let user_conn = user_db::init_user_db(&user_db_path)?;
+
+            let config = config::load_config(&app_data_dir)?;
+
             app.manage(AppState {
                 db: Mutex::new(conn),
+                user_db: Mutex::new(user_conn),
+                config: Mutex::new(config),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             search_words,
             get_word_definitions,
-            get_related_words
+            get_related_words,
+            get_flashcard_deck,
+            submit_card_answer,
+            set_word_ignored
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
