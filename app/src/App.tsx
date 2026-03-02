@@ -1,16 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import { searchWords } from "./api";
 import DefinitionPanel from "./components/DefinitionPanel";
 import { FlashcardSession } from "./components/FlashcardSession";
-
-interface Word {
-  id: number;
-  lemma: string;
-  frequency_count: number;
-  frequency_rank: number;
-  surface_forms?: string;
-}
+import type { Word } from "./types";
 
 function App() {
   const [query, setQuery] = useState("");
@@ -28,7 +21,7 @@ function App() {
       // Note: Tauri 'invoke' does not support cancellation.
       // The AbortSignal here prevents updating the UI state with stale results, 
       // but the backend request will still run to completion.
-      const result: Word[] = await invoke("search_words", { query: q });
+      const result = await searchWords(q);
       if (signal?.aborted) return [];
 
       lastQueryRef.current = q;
@@ -96,60 +89,60 @@ function App() {
         <>
           <div className="search-box">
             <input
-          id="search-input"
-          value={query}
-          onChange={(e) => setQuery(e.currentTarget.value)}
-          placeholder="Type to search..."
-          autoFocus
-        />
-      </div>
+              id="search-input"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              placeholder="Type to search..."
+              autoFocus
+            />
+          </div>
 
-      {error && <p className="error">Error: {error}</p>}
+          {error && <p className="error">Error: {error}</p>}
 
-      <div className="content-area">
-        <div className="results-container">
-          <table className="results-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Lemma</th>
-                <th>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {words.map((word) => (
-                <tr
-                  key={word.id}
-                  onClick={() => setSelectedWord(word)}
-                  className={selectedWord?.id === word.id ? "selected-row" : ""}
-                >
-                  <td>{word.frequency_rank}</td>
-                  <td className="lemma-cell">{word.lemma}</td>
-                  <td>{word.frequency_count.toLocaleString()}</td>
-                </tr>
-              ))}
-              {words.length === 0 && !error && (
-                <tr>
-                  <td colSpan={3} style={{ textAlign: "center" }}>No results found</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-          {selectedWord && (
-            <div className="side-panel-container">
-              <DefinitionPanel
-                wordId={selectedWord.id}
-                lemma={selectedWord.lemma}
-                surfaceForms={selectedWord.surface_forms}
-                onClose={() => setSelectedWord(null)}
-                onSelectWord={handleSelectRelated}
-              />
+          <div className="content-area">
+            <div className="results-container">
+              <table className="results-table">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Lemma</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {words.map((word) => (
+                    <tr
+                      key={word.id}
+                      onClick={() => setSelectedWord(word)}
+                      className={selectedWord?.id === word.id ? "selected-row" : ""}
+                    >
+                      <td>{word.frequency_rank}</td>
+                      <td className="lemma-cell">{word.lemma}</td>
+                      <td>{word.frequency_count.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                  {words.length === 0 && !error && (
+                    <tr>
+                      <td colSpan={3} style={{ textAlign: "center" }}>No results found</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-      </>
+
+            {selectedWord && (
+              <div className="side-panel-container">
+                <DefinitionPanel
+                  wordId={selectedWord.id}
+                  lemma={selectedWord.lemma}
+                  surfaceForms={selectedWord.surface_forms ?? undefined}
+                  onClose={() => setSelectedWord(null)}
+                  onSelectWord={handleSelectRelated}
+                />
+              </div>
+            )}
+          </div>
+        </>
       )}
     </main>
   );

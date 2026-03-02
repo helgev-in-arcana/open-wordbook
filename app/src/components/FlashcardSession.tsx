@@ -1,8 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { getFlashcardDeck, submitCardAnswer, setWordIgnored } from "../api";
 import type { WordCard } from "../types";
-
-import { useEffect, useRef } from "react";
 
 export function FlashcardSession() {
   const [deckQueue, setDeckQueue] = useState<WordCard[]>([]);
@@ -24,8 +22,18 @@ export function FlashcardSession() {
     setError(null);
 
     try {
-      const parsedTierMin = tierMin === "none" ? null : tierMin;
-      const parsedTierMax = tierMax === "none" ? null : tierMax;
+      const parsedTierMin = tierMin === "none" ? null : Number(tierMin);
+      const parsedTierMax = tierMax === "none" ? null : Number(tierMax);
+
+      // Validate tier values
+      if (parsedTierMin !== null && isNaN(parsedTierMin)) {
+        setError("Tier Min must be a number or 'none'.");
+        return;
+      }
+      if (parsedTierMax !== null && isNaN(parsedTierMax)) {
+        setError("Tier Max must be a number or 'none'.");
+        return;
+      }
 
       const newCards = await getFlashcardDeck(
         BATCH_SIZE,
@@ -151,6 +159,19 @@ export function FlashcardSession() {
 
   const currentCard = deckQueue[0];
 
+  const surfaceFormsDisplay = useMemo(() => {
+    const raw = currentCard?.word.surface_forms;
+    if (!raw) return null;
+    try {
+      const map = JSON.parse(raw) as Record<string, number>;
+      const items = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      if (items.length === 0) return null;
+      return items.map(([form, count]) => `${form} (${count})`).join(", ");
+    } catch {
+      return null;
+    }
+  }, [currentCard?.word.id]);
+
   return (
     <div style={{ padding: "1rem", border: "1px solid #ccc", borderRadius: "8px", maxWidth: "400px", margin: "auto", textAlign: "center", position: "relative" }}>
       <button
@@ -170,8 +191,8 @@ export function FlashcardSession() {
         <>
           <div style={{ margin: "2rem 0" }}>
             <h1 style={{ fontSize: "2.5rem", margin: 0 }}>{currentCard.word.lemma}</h1>
-            {currentCard.word.surface_forms && (
-              <p style={{ color: "gray" }}>{currentCard.word.surface_forms}</p>
+            {surfaceFormsDisplay && (
+              <p style={{ color: "gray", fontSize: "0.9rem" }}>{surfaceFormsDisplay}</p>
             )}
           </div>
 
@@ -198,7 +219,7 @@ export function FlashcardSession() {
           </div>
 
           <div style={{ marginTop: "1rem" }}>
-             <button onClick={handleIgnore} style={{ padding: "0.5rem 1rem", cursor: "pointer", background: "#eee", color: "#555" }}>
+            <button onClick={handleIgnore} style={{ padding: "0.5rem 1rem", cursor: "pointer", background: "#eee", color: "#555" }}>
               Ignore Word
             </button>
           </div>

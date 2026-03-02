@@ -27,10 +27,10 @@ pub fn load_config(config_dir: &Path) -> Result<FlashcardConfig, String> {
     let config_path = config_dir.join("config.json");
 
     if config_path.exists() {
-        let contents =
-            fs::read_to_string(&config_path).map_err(|e| format!("Failed to read config: {}", e))?;
-        let config =
-            serde_json::from_str(&contents).map_err(|e| format!("Failed to parse config: {}", e))?;
+        let contents = fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read config: {}", e))?;
+        let config = serde_json::from_str(&contents)
+            .map_err(|e| format!("Failed to parse config: {}", e))?;
         Ok(config)
     } else {
         // Create default config
@@ -42,7 +42,8 @@ pub fn load_config(config_dir: &Path) -> Result<FlashcardConfig, String> {
 
 pub fn save_config(config_dir: &Path, config: &FlashcardConfig) -> Result<(), String> {
     if !config_dir.exists() {
-        fs::create_dir_all(config_dir).map_err(|e| format!("Failed to create config dir: {}", e))?;
+        fs::create_dir_all(config_dir)
+            .map_err(|e| format!("Failed to create config dir: {}", e))?;
     }
 
     let config_path = config_dir.join("config.json");

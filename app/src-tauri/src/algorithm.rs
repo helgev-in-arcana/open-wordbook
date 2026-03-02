@@ -80,7 +80,7 @@ mod tests {
         assert_eq!(state.variance_ema, 0.0);
         assert_eq!(state.last_reviewed_at, 1000);
         assert_eq!(state.review_count, 1);
-        assert_eq!(state.is_ignored, false);
+        assert!(!state.is_ignored);
     }
 
     #[test]
@@ -113,7 +113,7 @@ mod tests {
     #[test]
     fn test_calculate_weight_unlearned() {
         let config = FlashcardConfig::default(); // new_weight_initial_value = 3.0
-        // freq = 100 => log10(100) = 2.0
+                                                 // freq = 100 => log10(100) = 2.0
         let weight = calculate_weight(None, 100, 1000, &config);
         assert_eq!(weight, 3.0 * 2.0); // 6.0
     }
@@ -144,7 +144,7 @@ mod tests {
 
         let state = UserLearningState {
             word_id: 1,
-            score_ema: 1.0, // w_diff = (2.0 - 1.0) * 1.0 = 1.0
+            score_ema: 1.0,    // w_diff = (2.0 - 1.0) * 1.0 = 1.0
             variance_ema: 0.5, // w_var = 0.5 * 1.0 = 0.5
             last_reviewed_at: 1000,
             review_count: 1,

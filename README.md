@@ -10,6 +10,7 @@
 *   **Smart Suggestions:** AI-powered semantic search (e.g., searching "cat" suggests "kitten", "feline").
 *   **Rich Definitions:** Integrated JMdict/Wiktionary definitions and POS tags.
 *   **Real Usage Stats:** Word frequency based on massive web corpora (FineWeb-Edu).
+*   **Flashcard Learning:** Built-in spaced repetition system with EMA-based scoring and weighted sampling.
 
 ## Development Status (Phase 4 Complete)
 
@@ -19,6 +20,7 @@ The project follows an Agile/Incremental development model.
 - [x] **Phase 2 (Dictionary):** Integrated JMdict definitions and POS filtering.
 - [x] **Phase 3 (MWE):** Multi-word expressions ("take off") and surface form analysis.
 - [x] **Phase 4 (Vectors):** Pre-calculated semantic similarity network using AI embeddings.
+- [x] **Phase 5 (Flashcards):** EMA-based spaced repetition with weighted random sampling.
 
 ## Getting Started
 
@@ -36,8 +38,11 @@ Run the Python pipeline to generate `words.sqlite3`. This requires downloading d
 # Install dependencies
 pip install -r pipeline/requirements.txt
 
-# Download raw data (Corpus & Dictionary)
+# Download raw data (Corpus)
 python pipeline/src/download_data.py
+
+# Download dictionary (JMdict)
+python pipeline/src/download_dict.py
 
 # Build Core Database (Phase 1 & 3)
 python pipeline/src/build_db.py
@@ -67,7 +72,7 @@ npm run tauri dev
 *   `app/`: Tauri application source code.
     *   `src-tauri/`: Rust backend.
     *   `src/`: React frontend.
-*   `docs/`: detailed documentation (ARCHITECTURE.md).
+*   `.agent/`: detailed documentation (ARCHITECTURE.md).
 
 ## License
 

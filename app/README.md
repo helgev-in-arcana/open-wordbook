@@ -1,6 +1,13 @@
-# Tauri + React + Typescript
+# Open Word Book — Application
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+The Tauri desktop application for Open Word Book. Built with Rust (backend) + React/TypeScript (frontend).
+
+## Development
+
+```bash
+npm install
+npm run tauri dev
+```
 
 ## Recommended IDE Setup
 

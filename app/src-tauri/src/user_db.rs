@@ -68,10 +68,9 @@ pub fn get_all_user_learning_states(
         .map_err(|e| format!("Query failed: {}", e))?;
 
     let mut map = HashMap::new();
-    for state_res in rows {
-        if let Ok(state) = state_res {
-            map.insert(state.word_id, state);
-        }
+    for state_result in rows {
+        let state = state_result.map_err(|e| format!("Row error: {}", e))?;
+        map.insert(state.word_id, state);
     }
 
     Ok(map)
@@ -89,21 +88,22 @@ pub fn get_user_learning_state(
         .map_err(|e| format!("Prepare failed: {}", e))?;
 
     let mut rows = stmt
-        .query([word_id])
+        .query_map([word_id], |row| {
+            Ok(UserLearningState {
+                word_id: row.get(0)?,
+                score_ema: row.get::<_, f64>(1)? as f32,
+                variance_ema: row.get::<_, f64>(2)? as f32,
+                last_reviewed_at: row.get(3)?,
+                review_count: row.get(4)?,
+                is_ignored: row.get(5)?,
+            })
+        })
         .map_err(|e| format!("Query failed: {}", e))?;
 
-    if let Some(row) = rows.next().map_err(|e| format!("Row iteration failed: {}", e))? {
-        let state = UserLearningState {
-            word_id: row.get(0).unwrap(),
-            score_ema: row.get::<_, f64>(1).unwrap() as f32,
-            variance_ema: row.get::<_, f64>(2).unwrap() as f32,
-            last_reviewed_at: row.get(3).unwrap(),
-            review_count: row.get(4).unwrap(),
-            is_ignored: row.get(5).unwrap(),
-        };
-        Ok(Some(state))
-    } else {
-        Ok(None)
+    match rows.next() {
+        Some(Ok(state)) => Ok(Some(state)),
+        Some(Err(e)) => Err(format!("Row error: {}", e)),
+        None => Ok(None),
     }
 }
 
@@ -205,13 +205,13 @@ mod tests {
         // 1. Set unlearned word to ignored
         set_word_ignored(&conn, 2, true).unwrap();
         let state1 = get_user_learning_state(&conn, 2).unwrap().unwrap();
-        assert_eq!(state1.is_ignored, true);
+        assert!(state1.is_ignored);
         assert_eq!(state1.review_count, 0);
 
         // 2. Un-ignore it
         set_word_ignored(&conn, 2, false).unwrap();
         let state2 = get_user_learning_state(&conn, 2).unwrap().unwrap();
-        assert_eq!(state2.is_ignored, false);
+        assert!(!state2.is_ignored);
 
         // 3. Set existing learned word to ignored (should keep other stats but set ignored flag)
         let state = UserLearningState {
@@ -226,7 +226,7 @@ mod tests {
 
         set_word_ignored(&conn, 3, true).unwrap();
         let state3 = get_user_learning_state(&conn, 3).unwrap().unwrap();
-        assert_eq!(state3.is_ignored, true);
+        assert!(state3.is_ignored);
         assert_eq!(state3.review_count, 5); // Kept existing stats
     }
 }

@@ -3,15 +3,15 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
-mod db;
-pub mod config;
-pub mod user_db;
 pub mod algorithm;
+pub mod config;
+mod db;
 pub mod flashcard;
+pub mod user_db;
 
+use config::FlashcardConfig;
 use db::{Definition, RelatedWord, Word};
 use flashcard::WordCard;
-use config::FlashcardConfig;
 
 pub struct AppState {
     pub db: Mutex<Connection>,
