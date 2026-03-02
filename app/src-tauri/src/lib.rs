@@ -3,20 +3,21 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
-pub mod algorithm;
-pub mod config;
 mod db;
-pub mod flashcard;
+pub mod config;
 pub mod user_db;
+pub mod algorithm;
+pub mod flashcard;
 
-use config::FlashcardConfig;
 use db::{Definition, RelatedWord, Word};
 use flashcard::WordCard;
+use config::FlashcardConfig;
 
 pub struct AppState {
     pub db: Mutex<Connection>,
     pub user_db: Mutex<Connection>,
     pub config: Mutex<FlashcardConfig>,
+    pub init_error: Mutex<Option<String>>,
 }
 
 fn resolve_db_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -101,30 +102,71 @@ fn set_word_ignored(state: State<'_, AppState>, word_id: i64, ignored: bool) -> 
     flashcard::handle_set_word_ignored(state, word_id, ignored)
 }
 
+#[tauri::command]
+fn get_init_error(state: State<'_, AppState>) -> Option<String> {
+    state.init_error.lock().unwrap().clone()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let mut init_error_msg: Option<String> = None;
+
             let db_path = resolve_db_path(app.handle()).unwrap_or_else(|e| {
                 eprintln!("Warning: failed to resolve db path: {}. Falling back to default 'words.sqlite3'.", e);
                 PathBuf::from("words.sqlite3")
             });
-            let conn = Connection::open_with_flags(
+            let conn = match Connection::open_with_flags(
                 &db_path,
                 rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-            ).map_err(|e| format!("Failed to open DB: {}", e))?;
+            ) {
+                Ok(c) => c,
+                Err(e) => {
+                    let err = format!("Failed to open DB: {}", e);
+                    init_error_msg = Some(err);
+                    Connection::open_in_memory().unwrap() // Fallback so app doesn't crash completely
+                }
+            };
 
-            let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let app_data_dir = match app.path().app_data_dir() {
+                Ok(dir) => dir,
+                Err(e) => {
+                    let err = format!("Failed to get app_data_dir: {}", e);
+                    if init_error_msg.is_none() { init_error_msg = Some(err); }
+                    PathBuf::from(".")
+                }
+            };
+
             let user_db_path = app_data_dir.join("user.sqlite3");
-            let user_conn = user_db::init_user_db(&user_db_path)?;
+            let user_conn = match user_db::init_user_db(&user_db_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    let err = format!("Failed to init user DB: {}", e);
+                    if init_error_msg.is_none() { init_error_msg = Some(err); }
 
-            let config = config::load_config(&app_data_dir)?;
+                    // Fallback to in-memory db if file creation fails
+                    let mem_conn = Connection::open_in_memory().unwrap();
+                    user_db::setup_tables(&mem_conn).unwrap();
+                    mem_conn
+                }
+            };
+
+            let config = match config::load_config(&app_data_dir) {
+                Ok(c) => c,
+                Err(e) => {
+                    let err = format!("Failed to load config: {}", e);
+                    if init_error_msg.is_none() { init_error_msg = Some(err); }
+                    config::FlashcardConfig::default()
+                }
+            };
 
             app.manage(AppState {
                 db: Mutex::new(conn),
                 user_db: Mutex::new(user_conn),
                 config: Mutex::new(config),
+                init_error: Mutex::new(init_error_msg),
             });
             Ok(())
         })
@@ -134,7 +176,8 @@ pub fn run() {
             get_related_words,
             get_flashcard_deck,
             submit_card_answer,
-            set_word_ignored
+            set_word_ignored,
+            get_init_error
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

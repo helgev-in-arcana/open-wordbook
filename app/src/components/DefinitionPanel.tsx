@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
-import { getWordDefinitions, getRelatedWords } from "../api";
-import type { Definition, RelatedWord } from "../types";
+import { invoke } from "@tauri-apps/api/core";
 import "./DefinitionPanel.css";
+
+interface Definition {
+  id: number;
+  word_id: number;
+  part_of_speech: string;
+  meaning: string;
+  source: string;
+}
+
+interface RelatedWord {
+  id: number;
+  word_id: number;
+  lemma: string;
+  relation_type: string;
+  score: number;
+}
 
 interface DefinitionPanelProps {
   wordId: number;
@@ -73,12 +88,12 @@ export default function DefinitionPanel({ wordId, lemma, surfaceForms, onClose, 
 
     // Fetch definitions and related words in parallel
     Promise.all([
-      getWordDefinitions(wordId),
-      getRelatedWords(wordId)
+        invoke("get_word_definitions", { wordId }),
+        invoke("get_related_words", { wordId })
     ])
       .then(([defs, related]) => {
-        setDefinitions(defs);
-        setRelatedWords(related);
+        setDefinitions(defs as Definition[]);
+        setRelatedWords(related as RelatedWord[]);
         setLoading(false);
       })
       .catch((e) => {
@@ -93,12 +108,12 @@ export default function DefinitionPanel({ wordId, lemma, surfaceForms, onClose, 
     <div className="definition-panel">
       <div className="panel-header">
         <div>
-          <h2>{lemma}</h2>
-          {formsDisplay && (
-            <div className="surface-forms">
-              <span className="surface-label">出現形:</span> {formsDisplay}
-            </div>
-          )}
+            <h2>{lemma}</h2>
+            {formsDisplay && (
+                <div className="surface-forms">
+                    <span className="surface-label">出現形:</span> {formsDisplay}
+                </div>
+            )}
         </div>
         <button onClick={onClose} className="close-btn" aria-label="Close">×</button>
       </div>
@@ -108,42 +123,42 @@ export default function DefinitionPanel({ wordId, lemma, surfaceForms, onClose, 
 
       {!loading && !error && (
         <div className="panel-content">
-          <div className="definitions-section">
-            <h3>Definitions</h3>
-            {definitions.length === 0 ? (
-              <p>No definitions found.</p>
-            ) : (
-              <ul className="definition-list">
-                {definitions.map((def) => (
-                  <li key={def.id} className="definition-item">
-                    <div className="def-header">
-                      <span className="pos-tag">{localizePos(def.part_of_speech)}</span>
-                      <span className="source-tag">{def.source}</span>
-                    </div>
-                    <div className="meaning">{def.meaning}</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {relatedWords.length > 0 && (
-            <div className="related-section">
-              <h3>Related Words</h3>
-              <div className="related-chips">
-                {relatedWords.map((rw) => (
-                  <button
-                    key={rw.id}
-                    className="related-chip"
-                    onClick={() => onSelectWord(rw.lemma)}
-                    title={`Score: ${rw.score.toFixed(3)}`}
-                  >
-                    {rw.lemma}
-                  </button>
-                ))}
-              </div>
+            <div className="definitions-section">
+              <h3>Definitions</h3>
+              {definitions.length === 0 ? (
+                <p>No definitions found.</p>
+              ) : (
+                <ul className="definition-list">
+                  {definitions.map((def) => (
+                    <li key={def.id} className="definition-item">
+                      <div className="def-header">
+                        <span className="pos-tag">{localizePos(def.part_of_speech)}</span>
+                        <span className="source-tag">{def.source}</span>
+                      </div>
+                      <div className="meaning">{def.meaning}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          )}
+
+            {relatedWords.length > 0 && (
+                <div className="related-section">
+                    <h3>Related Words</h3>
+                    <div className="related-chips">
+                        {relatedWords.map((rw) => (
+                            <button
+                                key={rw.id}
+                                className="related-chip"
+                                onClick={() => onSelectWord(rw.lemma)}
+                                title={`Score: ${rw.score.toFixed(3)}`}
+                            >
+                                {rw.lemma}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
       )}
     </div>

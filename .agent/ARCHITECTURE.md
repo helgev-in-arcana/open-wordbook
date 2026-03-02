@@ -8,7 +8,7 @@ This document provides a comprehensive overview of the system architecture for t
 *   **Separation of Concerns:**
     *   **Data Pipeline (Python):** Handles heavy lifting (NLP, Vectorization, Database Construction).
     *   **Application (Rust/Tauri/React):** Lightweight, read-only viewer.
-*   **Agile/Incremental Development:** Features are built in distinct phases (MVP -> Dictionary -> MWE -> Vectors -> Flashcards).
+*   **Agile/Incremental Development:** Features are built in distinct phases (MVP -> Dictionary -> MWE -> Vectors).
 
 ## 2. System Overview
 
@@ -48,17 +48,6 @@ A cross-platform desktop application that consumes the `words.sqlite3` database.
     *   **Word List:** Virtualized or paginated list of results.
     *   **Definition Panel:** Displays definitions, POS tags, surface forms, and related words.
     *   **Navigation:** Clicking a related word triggers a new search.
-    *   **Flashcard Mode:** EMA-based spaced repetition with weighted random sampling.
-
-### 2.3. User Data (Flashcard System)
-
-User learning progress is stored in a separate writable database (`user.sqlite3`) in the app data directory, keeping the vocabulary database (`words.sqlite3`) read-only.
-
-**Key Components:**
-*   **`user_db.rs`:** Manages `user.sqlite3` (create, read, upsert learning states).
-*   **`algorithm.rs`:** EMA-based state updates and weight calculation (see `FLASHCARD_ALGORITHM.md`).
-*   **`flashcard.rs`:** Deck generation with weighted random sampling, partitioned into review/new card pools.
-*   **`config.rs`:** Persisted hyperparameters (alpha, weight coefficients, etc.) in `config.json`.
 
 ## 3. Database Schema (`words.sqlite3`)
 
@@ -109,10 +98,10 @@ Stores pre-calculated semantic relationships (Many-to-Many).
 
 ### 4.3. Full-Text Search (FTS)
 *   **Decision:** Used `words_fts` (FTS5) for fast prefix searching.
-*   **Reason:** FTS5's `MATCH` operator with prefix queries (`"query"*`) provides efficient, ranked prefix search. The search query is quoted and escaped to handle special characters safely.
+*   **Reason:** `LIKE 'query%'` is fast with an index, but FTS5 provides better ranking and tokenization support if we expand to searching definitions later. (Currently `LIKE` is used for simple prefix search in `db.rs`).
 
 ## 5. Future Considerations
 
+*   **User Data:** Bookmarks and learning history need a separate `user.sqlite3`.
 *   **Incremental Updates:** Distributing only the delta of the database instead of the full file.
 *   **Mobile Support:** Tauri supports mobile, so the architecture (Rust/React) is ready for iOS/Android adaptation.
-*   **Flashcard UI Enhancement:** Context-based flashcards (fill-in-the-blank), progress visualization.

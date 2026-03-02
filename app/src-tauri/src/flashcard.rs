@@ -1,9 +1,6 @@
 use crate::algorithm::{calculate_weight, update_learning_state};
-use crate::user_db::{
-    get_all_user_learning_states, get_user_learning_state, save_user_learning_state,
-    set_word_ignored, UserLearningState,
-};
-use crate::{db, db::Word, AppState};
+use crate::user_db::{get_all_user_learning_states, get_user_learning_state, save_user_learning_state, set_word_ignored};
+use crate::{db::Word, AppState};
 use rand::distr::weighted::WeightedIndex;
 use rand::distr::Distribution;
 use rand::rng;
@@ -23,31 +20,6 @@ pub struct WordCard {
     pub calculated_weight: f32,
 }
 
-/// Build a WordCard from a Word and optional user learning state.
-fn build_word_card(word: Word, state: Option<&UserLearningState>, weight: f32) -> WordCard {
-    if let Some(s) = state {
-        WordCard {
-            word,
-            score_ema: s.score_ema,
-            variance_ema: s.variance_ema,
-            last_reviewed_at: s.last_reviewed_at,
-            review_count: s.review_count,
-            is_ignored: s.is_ignored,
-            calculated_weight: weight,
-        }
-    } else {
-        WordCard {
-            word,
-            score_ema: 0.0,
-            variance_ema: 0.0,
-            last_reviewed_at: 0,
-            review_count: 0,
-            is_ignored: false,
-            calculated_weight: weight,
-        }
-    }
-}
-
 pub fn get_flashcard_deck(
     state: State<'_, AppState>,
     total_cards: u32,
@@ -55,7 +27,6 @@ pub fn get_flashcard_deck(
     tier_min: Option<u32>,
     tier_max: Option<u32>,
 ) -> Result<Vec<WordCard>, String> {
-    // Lock order: when acquiring multiple locks, always use db -> user_db -> config.
     let words_conn = state
         .db
         .lock()
@@ -74,81 +45,105 @@ pub fn get_flashcard_deck(
         .unwrap()
         .as_secs() as i64;
 
-    // User learning states are bounded by the number of words the user has interacted with
-    let user_states_map = get_all_user_learning_states(&user_conn)?;
+    // Build query for words
+    let mut conditions = Vec::new();
+    if let Some(min) = tier_min {
+        conditions.push(format!("frequency_rank >= {}", min));
+    }
+    if let Some(max) = tier_max {
+        conditions.push(format!("frequency_rank <= {}", max));
+    }
 
-    let review_count_target = ((total_cards as f32) * (1.0 - new_ratio)).round() as usize;
+    let tier_condition = if conditions.is_empty() {
+        "".to_string()
+    } else {
+        format!("WHERE {}", conditions.join(" AND "))
+    };
+
+    let sql = format!(
+        "SELECT id, lemma, frequency_count, frequency_rank, surface_forms FROM words {}",
+        tier_condition
+    );
+
+    let mut stmt = words_conn
+        .prepare(&sql)
+        .map_err(|e| format!("Prepare failed: {}", e))?;
+    let word_iter = stmt
+        .query_map([], |row| {
+            Ok(Word {
+                id: row.get(0)?,
+                lemma: row.get(1)?,
+                frequency_count: row.get(2)?,
+                frequency_rank: row.get(3)?,
+                surface_forms: row.get(4)?,
+            })
+        })
+        .map_err(|e| format!("Query failed: {}", e))?;
+
+    let user_states_map = get_all_user_learning_states(&user_conn).unwrap_or_default();
+
+    let mut review_cards: Vec<WordCard> = Vec::new();
+    let mut new_cards: Vec<WordCard> = Vec::new();
+
+    for w_res in word_iter {
+        let w = match w_res {
+            Ok(w) => w,
+            Err(_) => continue,
+        };
+
+        let user_state = user_states_map.get(&w.id);
+        let weight = calculate_weight(user_state, w.frequency_count, now, &config);
+
+        let mut card = WordCard {
+            word: w,
+            score_ema: 0.0,
+            variance_ema: 0.0,
+            last_reviewed_at: 0,
+            review_count: 0,
+            is_ignored: false,
+            calculated_weight: weight,
+        };
+
+        if let Some(s) = user_state {
+            if s.is_ignored {
+                continue;
+            }
+            card.score_ema = s.score_ema;
+            card.variance_ema = s.variance_ema;
+            card.last_reviewed_at = s.last_reviewed_at;
+            card.review_count = s.review_count;
+            card.is_ignored = s.is_ignored;
+
+            if s.review_count > 0 {
+                review_cards.push(card);
+            } else {
+                new_cards.push(card);
+            }
+        } else {
+            new_cards.push(card);
+        }
+    }
+
+    let clamped_new_ratio = new_ratio.clamp(0.0, 1.0);
+    let review_count_target = ((total_cards as f32) * (1.0 - clamped_new_ratio)).round() as usize;
     let new_count_target = total_cards as usize - review_count_target;
 
     let mut final_deck = Vec::new();
     let mut rng_thread = rng();
 
-    // === Review Cards ===
-    // Only fetch words that have been reviewed (small, bounded set)
-    if review_count_target > 0 {
-        let reviewed_ids: Vec<i64> = user_states_map
-            .iter()
-            .filter(|(_, s)| s.review_count > 0 && !s.is_ignored)
-            .map(|(id, _)| *id)
-            .collect();
-
-        if !reviewed_ids.is_empty() {
-            let review_words =
-                db::fetch_words_by_ids(&words_conn, &reviewed_ids, tier_min, tier_max)?;
-            let review_cards: Vec<WordCard> = review_words
-                .into_iter()
-                .map(|w| {
-                    let user_state = user_states_map.get(&w.id);
-                    let weight = calculate_weight(user_state, w.frequency_count, now, &config);
-                    build_word_card(w, user_state, weight)
-                })
-                .collect();
-            sample_cards(
-                &mut final_deck,
-                &review_cards,
-                review_count_target,
-                &mut rng_thread,
-            );
-        }
-    }
-
-    // === New Cards ===
-    // Fetch a limited pool of unreviewed candidates ordered by frequency (most common first)
-    if new_count_target > 0 {
-        let exclude_ids: Vec<i64> = user_states_map
-            .iter()
-            .filter(|(_, s)| s.review_count > 0 || s.is_ignored)
-            .map(|(id, _)| *id)
-            .collect();
-
-        // Pool multiplier: sample from a pool 10x the target to give weighted
-        // random sampling enough diversity. Floor of 50 avoids degenerate tiny pools.
-        const NEW_POOL_MULTIPLIER: usize = 10;
-        const NEW_POOL_MIN: usize = 50;
-        let pool_size = (new_count_target * NEW_POOL_MULTIPLIER).max(NEW_POOL_MIN);
-        let new_words = db::fetch_new_word_candidates(
-            &words_conn,
-            &exclude_ids,
-            tier_min,
-            tier_max,
-            pool_size,
-        )?;
-
-        let new_cards: Vec<WordCard> = new_words
-            .into_iter()
-            .map(|w| {
-                let user_state = user_states_map.get(&w.id);
-                let weight = calculate_weight(user_state, w.frequency_count, now, &config);
-                build_word_card(w, user_state, weight)
-            })
-            .collect();
-        sample_cards(
-            &mut final_deck,
-            &new_cards,
-            new_count_target,
-            &mut rng_thread,
-        );
-    }
+    // Sample cards without replacement
+    sample_cards(
+        &mut final_deck,
+        &review_cards,
+        review_count_target,
+        &mut rng_thread,
+    );
+    sample_cards(
+        &mut final_deck,
+        &new_cards,
+        new_count_target,
+        &mut rng_thread,
+    );
 
     Ok(final_deck)
 }
@@ -189,10 +184,6 @@ pub fn submit_card_answer(
     word_id: i64,
     score: u8,
 ) -> Result<(), String> {
-    if score > 2 {
-        return Err(format!("Invalid score: {}. Must be 0, 1, or 2.", score));
-    }
-
     let user_conn = state
         .user_db
         .lock()
@@ -208,7 +199,8 @@ pub fn submit_card_answer(
         .as_secs() as i64;
     let current_state = get_user_learning_state(&user_conn, word_id).unwrap_or(None);
 
-    let updated_state = update_learning_state(current_state.as_ref(), word_id, score, &config, now);
+    let updated_state =
+        update_learning_state(current_state.as_ref(), word_id, score, &config, now);
 
     save_user_learning_state(&user_conn, &updated_state)?;
 
@@ -252,7 +244,11 @@ mod tests {
 
     #[test]
     fn test_sample_cards_basic() {
-        let cards = vec![mock_card(1, 10.0), mock_card(2, 5.0), mock_card(3, 1.0)];
+        let cards = vec![
+            mock_card(1, 10.0),
+            mock_card(2, 5.0),
+            mock_card(3, 1.0),
+        ];
 
         let mut deck = Vec::new();
         let mut rng = rand::rng();
@@ -267,7 +263,10 @@ mod tests {
 
     #[test]
     fn test_sample_cards_more_than_available() {
-        let cards = vec![mock_card(1, 10.0), mock_card(2, 5.0)];
+        let cards = vec![
+            mock_card(1, 10.0),
+            mock_card(2, 5.0),
+        ];
 
         let mut deck = Vec::new();
         let mut rng = rand::rng();

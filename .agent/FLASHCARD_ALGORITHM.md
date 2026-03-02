@@ -114,11 +114,11 @@ $$ W(w) = (W_{diff} + W_{var} + W_{time}) \times \log_{10}(F_{corpus}) $$
 
 Rust側のTauri Commandとして以下を実装し、Reactフロントエンドから呼び出せるようにする。
 
-1.  `get_flashcard_deck(total_cards: u32, new_ratio: f32, tier_min: Option<u32>, tier_max: Option<u32>) -> Result<Vec<WordCard>, Error>`
+1.  `get_flashcard_deck(total_cards: u32, new_ratio: f32, active_tier_limit: Option<u32>) -> Result<Vec<WordCard>, Error>`
     *   上記Phase 2 & 3のロジックを統合し、指定枚数のカード配列を返す。
 
-2.  `submit_card_answer(word_id: i64, score: u8) -> Result<(), Error>`
+2.  `submit_card_answer(word_id: u32, score: u8) -> Result<(), Error>`
     *   `score` (0, 1, 2) を受け取り、Phase 3.1 の EMA更新ロジックに基づき `user_learning_states` をUPSERTする。
 
-3.  `set_word_ignored(word_id: i64, ignored: bool) -> Result<(), Error>`
+3.  `set_word_ignored(word_id: u32, ignored: bool) -> Result<(), Error>`
     *   不要な既知単語（the, apple等）をサンプリング対象から外すフラグを切り替える。

@@ -1,13 +1,6 @@
-# Open Word Book — Application
+# Tauri + React + Typescript
 
-The Tauri desktop application for Open Word Book. Built with Rust (backend) + React/TypeScript (frontend).
-
-## Development
-
-```bash
-npm install
-npm run tauri dev
-```
+This template should help get you started developing with Tauri, React and Typescript in Vite.
 
 ## Recommended IDE Setup
 
