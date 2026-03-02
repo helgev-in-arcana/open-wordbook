@@ -101,6 +101,21 @@ export function FlashcardSession() {
     setDeckQueue([]);
   };
 
+  const currentCard = deckQueue[0];
+
+  const surfaceFormsDisplay = useMemo(() => {
+    const raw = currentCard?.word.surface_forms;
+    if (!raw) return null;
+    try {
+      const map = JSON.parse(raw) as Record<string, number>;
+      const items = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      if (items.length === 0) return null;
+      return items.map(([form, count]) => `${form} (${count})`).join(", ");
+    } catch {
+      return null;
+    }
+  }, [currentCard?.word?.id]);
+
   if (!sessionActive) {
     return (
       <div style={{ padding: "1rem", border: "1px solid #ccc", borderRadius: "8px", maxWidth: "400px", margin: "auto" }}>
@@ -156,21 +171,6 @@ export function FlashcardSession() {
       </div>
     );
   }
-
-  const currentCard = deckQueue[0];
-
-  const surfaceFormsDisplay = useMemo(() => {
-    const raw = currentCard?.word.surface_forms;
-    if (!raw) return null;
-    try {
-      const map = JSON.parse(raw) as Record<string, number>;
-      const items = Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      if (items.length === 0) return null;
-      return items.map(([form, count]) => `${form} (${count})`).join(", ");
-    } catch {
-      return null;
-    }
-  }, [currentCard?.word.id]);
 
   return (
     <div style={{ padding: "1rem", border: "1px solid #ccc", borderRadius: "8px", maxWidth: "400px", margin: "auto", textAlign: "center", position: "relative" }}>
