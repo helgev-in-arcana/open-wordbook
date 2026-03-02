@@ -1,7 +1,7 @@
 use rusqlite::Connection;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Word {
     pub id: i64,
     pub lemma: String,
@@ -10,7 +10,7 @@ pub struct Word {
     pub surface_forms: Option<String>,
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Definition {
     pub id: i64,
     pub word_id: i64,
@@ -19,7 +19,7 @@ pub struct Definition {
     pub source: String,
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct RelatedWord {
     pub id: i64,
     pub word_id: i64,

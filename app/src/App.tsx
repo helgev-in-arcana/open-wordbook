@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 import DefinitionPanel from "./components/DefinitionPanel";
+import { FlashcardSession } from "./components/FlashcardSession";
 
 interface Word {
   id: number;
@@ -16,6 +17,7 @@ function App() {
   const [words, setWords] = useState<Word[]>([]);
   const [error, setError] = useState("");
   const [selectedWord, setSelectedWord] = useState<Word | null>(null);
+  const [showFlashcards, setShowFlashcards] = useState(false);
   const lastQueryRef = useRef<string | null>(null);
 
   async function search(q: string, signal?: AbortSignal): Promise<Word[]> {
@@ -57,6 +59,13 @@ function App() {
   }
 
   useEffect(() => {
+    // Check for backend initialization errors
+    invoke<string | null>("get_init_error").then((err) => {
+      if (err) {
+        window.alert(`Backend Initialization Error: ${err}\n\nThe app may not function correctly. Please check permissions or installation files.`);
+      }
+    }).catch(console.error);
+
     const controller = new AbortController();
     // Initial load
     search("", controller.signal);
@@ -76,10 +85,24 @@ function App() {
 
   return (
     <main className="container">
-      <h1>Open Word Book</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Open Word Book</h1>
+        <button
+          onClick={() => setShowFlashcards(!showFlashcards)}
+          style={{ padding: "0.5rem 1rem", cursor: "pointer", height: "fit-content" }}
+        >
+          {showFlashcards ? "Close Flashcards" : "Study Flashcards"}
+        </button>
+      </div>
 
-      <div className="search-box">
-        <input
+      {showFlashcards ? (
+        <div style={{ marginTop: "2rem" }}>
+          <FlashcardSession />
+        </div>
+      ) : (
+        <>
+          <div className="search-box">
+            <input
           id="search-input"
           value={query}
           onChange={(e) => setQuery(e.currentTarget.value)}
@@ -121,18 +144,20 @@ function App() {
           </table>
         </div>
 
-        {selectedWord && (
-          <div className="side-panel-container">
-            <DefinitionPanel
-              wordId={selectedWord.id}
-              lemma={selectedWord.lemma}
-              surfaceForms={selectedWord.surface_forms}
-              onClose={() => setSelectedWord(null)}
-              onSelectWord={handleSelectRelated}
-            />
-          </div>
-        )}
-      </div>
+          {selectedWord && (
+            <div className="side-panel-container">
+              <DefinitionPanel
+                wordId={selectedWord.id}
+                lemma={selectedWord.lemma}
+                surfaceForms={selectedWord.surface_forms}
+                onClose={() => setSelectedWord(null)}
+                onSelectWord={handleSelectRelated}
+              />
+            </div>
+          )}
+        </div>
+      </>
+      )}
     </main>
   );
 }
